@@ -25,7 +25,23 @@ Route::middleware('auth:api')->group(function () {
     Route::post('logout', 'LoginController@logout');
 
     Route::get('lessonGetInformation/{lesson}', 'LessonsController@lessonGetInformation');
-    Route::post('lessonCreate', 'LessonsController@lessonCreate');
+    
+    Route::get('lessonGetInformation/{lesson}', 'LessonsController@lessonGetInformation');
+
+    Route::post('lessonSearch', 'LessonsController@lessonSearch');
+
+    Route::post('lessonWishlist', 'LessonsController@lessonWishlist');
+    Route::post('lessonWishlistRemove', 'LessonsController@lessonWishlistRemove');
+
+    //role for student
+    Route::group(['middleware' => ['role:student']], function () {
+        
+    });
+
+    //role for instructor
+    Route::group(['middleware' => ['role:instructor']], function () {
+        Route::post('lessonCreate', 'LessonsController@lessonCreate');
+    });
 });
 
 

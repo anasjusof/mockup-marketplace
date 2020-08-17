@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
+
 class LoginController extends Controller
 {
     public function login(Request $request)
@@ -44,8 +45,11 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        $user = auth()->user()->token();
-        $user->revoke();
+        \DB::table('oauth_access_tokens')
+        ->where('user_id', Auth::user()->id)
+        ->update([
+            'revoked' => true
+        ]);
 
         return response()->json(
             [
