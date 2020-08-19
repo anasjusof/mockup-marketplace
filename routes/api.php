@@ -18,30 +18,54 @@ Route::post('/login', 'LoginController@login');
 Route::post('/register', 'UserController@register');
 
 Route::middleware('auth:api')->group(function () {
-    // our routes to be protected will go in here
+
+    ########### ----------------- Universal Role ----------------- ###########
+
+    //Logout
+    Route::post('logout', 'LoginController@logout');
+
+
+    //User Profiles
     Route::get('userProfile', 'UserController@showUserProfile');
     Route::post('userProfileUpdate/{user}', 'UserController@userProfileUpdate');
 
-    Route::post('logout', 'LoginController@logout');
-
-    Route::get('lessonGetInformation/{lesson}', 'LessonsController@lessonGetInformation');
     
+    //Lesson
+    #Detailed information on lesson
     Route::get('lessonGetInformation/{lesson}', 'LessonsController@lessonGetInformation');
-
+    #Search the lesson via keyword + location
     Route::post('lessonSearch', 'LessonsController@lessonSearch');
-
+    #Wishlist a lessson
     Route::post('lessonWishlist', 'LessonsController@lessonWishlist');
     Route::post('lessonWishlistRemove', 'LessonsController@lessonWishlistRemove');
+    #Add review to lesson
+    Route::post('lessonAddReview', 'LessonsController@lessonAddReview');
+    #Create a lesson (Post a lesson @ Request for lesson)
+    Route::post('lessonCreate', 'LessonsController@lessonCreate');
+    #Create interested requestor to join requested lesson
+    Route::post('lessonInterestedRequestorCreate', 'LessonsController@lessonInterestedRequestorCreate');
 
-    //role for student
+    #Get location between two point
+    Route::post('getDistanceBetweenUserAndLessonLocation', 'LessonsController@getDistanceBetweenUserAndLessonLocation');
+    
+
+
+    ########### ----------------- Role for student ----------------- ###########
     Route::group(['middleware' => ['role:student']], function () {
         
     });
 
-    //role for instructor
+
+
+    ########### ----------------- Role for instructor ----------------- ###########
     Route::group(['middleware' => ['role:instructor']], function () {
-        Route::post('lessonCreate', 'LessonsController@lessonCreate');
+        #Create @ delete lesson level
+        Route::post('lessonLevelCreate', 'LessonsController@lessonLevelCreate');
+        Route::post('lessonLevelRemove', 'LessonsController@lessonLevelRemove');
     });
+
+    ##To be deleted @ unused route
+    //Route::post('lessonRequestCreate', 'LessonsController@lessonRequestCreate');
 });
 
 

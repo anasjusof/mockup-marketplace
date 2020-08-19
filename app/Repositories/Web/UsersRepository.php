@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Repositories\Web;
 
 use App\User;
 use App\Locations;
@@ -10,18 +10,30 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\UserWithAvailibilityLocation;
 
-class UserController extends Controller
+class UsersRepository
 {
-    public function register(Request $request)
-    {    
-        //Validate request
-        $request->validate([
-            'email' => ['email', 'required', 'unique:users'],
-            'name' => ['required'],
-            'password' => ['required'],
-            'role' => ['required']
-        ]);
 
+    protected $user;
+    protected $lessonRepository;
+
+	public function __construct(User $user)
+	{
+        $this->user = $user;
+	}
+
+    public function find($userId)
+    {
+        $user = User::find($userId);
+        return $user;
+    }
+
+    public function findByEmail($email)
+    {
+        return User::where('email', $email)->first();
+    }
+
+    public function create($request)
+    {
         try{
             DB::transaction(function() use ($request){
                 //Create user
@@ -79,48 +91,5 @@ class UserController extends Controller
             ],
             200
         );
-    }
-
-    public function showUserProfile()
-    {
-        //$user = auth()->user();
-
-        $user = User::with('availabilityLocations.location', 'lessons.lessonTag')->find(auth()->user()->id);
-
-        return response()->json([ 'user_information' => $user], 200);
-    }
-
-    public function userProfileUpdate(Request $request, User $user)
-    {
-        $request->only([
-            'name', 
-            'password'
-        ]);
-
-        if($request['password']){
-            $request['password'] = bcrypt($request['password']);
-        }
-        
-        $request = array_filter($request->all());
-
-        try{
-            DB::transaction(function() use ($request, $user){
-                $user->update($request);
-            });
-        }
-        catch(\Exception $e){
-            return response()->json(
-                [
-                    'message' => trans('message.fail_update_user')
-                ], 400
-            );
-        }
-
-        return response()->json(
-            [
-                'message' => trans('message.success_update_user')
-            ], 200
-        );
-
     }
 }

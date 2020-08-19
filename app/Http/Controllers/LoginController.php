@@ -53,8 +53,7 @@ class LoginController extends Controller
 
         return response()->json(
             [
-                'success' => true,
-                'message' => 'Logged out'
+                'message' => trans('message.success_log_out')
             ],
             200
         );

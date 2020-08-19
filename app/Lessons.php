@@ -10,7 +10,7 @@ class Lessons extends Model
 
     public function instructor()
     {
-        return $this->belongsTo('App\User', 'instructor_id');
+        return $this->belongsTo('App\User', 'user_id');
     }
     
     public function tags()
