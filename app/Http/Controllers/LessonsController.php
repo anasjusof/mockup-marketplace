@@ -18,33 +18,26 @@ use Illuminate\Support\Facades\DB;
 use App\LessonRequestWithLocations;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use App\Traits\LogTrait;
+
+use App\Repositories\Web\LessonRepository;
 
 class LessonsController extends Controller
 {
+    use LogTrait;
+
+    private $lessonRepository;
+
+    public function __construct(LessonRepository $lessonRepository){
+        $this->lessonRepository = $lessonRepository;
+    }
+
     public function lessonGetInformation($lesson_id)
     {
-        $lesson_info = [];
-        $status = false;
-
-        $lesson = Lessons::with(['tags.tag', 'locations.location'])->find($lesson_id);
-
-        if($lesson){
-            $lesson_info = $lesson;
-            
-            return response()->json(
-                [
-                    'lesson_info' => $lesson_info
-                ],
-                200
-            );
-        }
-
-        return response()->json(
-            [
-                'lesson_info' => $lesson_info 
-            ],
-            400
-        );
+        $response = $this->lessonRepository->lessonGetInformation($lesson_id);
+        
+        return $this->formatResponse($response['message'], $response['status_code']);
+        
     }
 
     public function lessonCreate(Request $request)
@@ -61,38 +54,9 @@ class LessonsController extends Controller
             'post_or_request' => $request->post_or_request
         ];
 
-        try{
-            DB::transaction(function() use($lesson_request, $request){
+        $response = $this->lessonRepository->lessonCreate($lesson_request, $request);
 
-                //Create lesson
-                $lesson = Lessons::create($lesson_request);
-    
-                //Foreach new tag, create tag or else take created tag to be stored into lessonWithTag
-                foreach($request->tag as $tag){
-                    $tag = TagsLesson::firstOrCreate(['name' => $tag]);
-    
-                    LessonWithTag::firstOrCreate([
-                        'lesson_id' => $lesson->id,
-                        'tag_lesson_id' => $tag->id
-                    ]);
-                }
-    
-                //Foreach new locatiom, create new location or else take created location o be stored into lessonWithLocation
-                foreach($request->location as $location){
-                    $location = Locations::firstOrCreate(['name' => $location]);
-    
-                    LessonWithLocation::firstOrCreate([
-                        'lesson_id' => $lesson->id,
-                        'location_id' => $location->id
-                    ]);          
-                }
-            });
-        }
-        catch(\Exception $e){
-            return response()->json(['message' => trans('message.fail_create_lesson')], 400);
-        }
-
-        return response()->json(['message' => trans('message.success_create_lesson')], 200);
+        return $this->formatResponse($response['message'], $response['status_code']);
         
     }
 
@@ -117,9 +81,14 @@ class LessonsController extends Controller
                 WHERE (tags_lessons.name LIKE '%$request->keyword%'
                 OR lessons.name LIKE '%$request->keyword%') $location_query
                 GROUP BY lesson_with_tags.lesson_id"
-            ));
+        ));
 
-        return response()->json(['result' => $result]);
+        return response()->json(
+            [
+                'lesson_list' => $result
+            ],
+            200
+        );
     }
 
     public function lessonWishlist(Request $request){
@@ -127,19 +96,9 @@ class LessonsController extends Controller
             'lesson_id' => 'required'
         ]);
 
-        try{
-            \DB::transaction(function() use ($request){
-                LessonWishlist::firstOrCreate([
-                    'user_id' => auth()->user()->id,
-                    'lesson_id' => $request->lesson_id
-                ]);
-            });
-        }
-        catch(\Exception $e){
-            return response()->json(['message' => trans('message.failed_wishlist_lesson')], 400);
-        }
+        $response = $this->lessonRepository->lessonWishlist($request);
 
-        return response()->json(['message' => trans('message.success_wishlist_lesson')], 200);
+        return $this->formatResponse($response['message'], $response['status_code']);
     }
 
     public function lessonWishlistRemove(Request $request)
@@ -148,66 +107,32 @@ class LessonsController extends Controller
             'lesson_id' => 'required'
         ]);
 
-        try{
-            $wishlist_lesson = LessonWishlist::where('lesson_id', $request->lesson_id)
-                                                ->where('user_id', auth()->user()->id)
-                                                ->first();
+        $response = $this->lessonRepository->lessonWishlistRemove($request);
 
-            if($wishlist_lesson){
-                $wishlist_lesson->delete();
-            }
-            else{
-                return response()->json(['message' => trans('message.not_found_wishlist_lesson')], 400);
-            }      
-        }
-        catch(\Exception $e){
-            return response()->json(['message' => trans('message.failed_remove_wishlist_lesson')], 400);
-        }
-
-        return response()->json(['message' => trans('message.success_remove_wishlist_lesson')], 200);
+        return $this->formatResponse($response['message'], $response['status_code']);
 
     }
 
     public function lessonLevelCreate(Request $request)
     {
         $request->validate([
-            'lesson_type' => 'required'
+            'lesson_level' => 'required'
         ]);
 
-        try{
-            \DB::transaction(function() use ($request){
+        $response = $this->lessonRepository->lessonLevelCreate($request);
 
-                LessonLevel::firstOrCreate(['type' => $request->lesson_type]);
-            });
-        }
-        catch(\Exception $e){
-            return response()->json(['message' => trans('message.failed_create_lesson_type')], 400);
-        }
-
-        return response()->json(['message' => trans('message.success_create_lesson_type')], 200);
+        return $this->formatResponse($response['message'], $response['status_code']);
     }
 
     public function lessonLevelRemove(Request $request)
     {
         $request->validate([
-            'lesson_id' => 'required'
+            'lesson_level_id' => 'required'
         ]);
 
-        try{
-            $lesson_level = LessonLevel::find($request->lesson_id);
+        $response = $this->lessonRepository->lessonLevelRemove($request);
 
-            if($lesson_level){
-                $lesson_level->delete();
-            }
-            else{
-                return response()->json(['message' => trans('message.not_found_lesson_type')], 400);
-            }      
-        }
-        catch(\Exception $e){
-            return response()->json(['message' => trans('message.failed_delete_lesson_type')], 400);
-        }
-
-        return response()->json(['message' => trans('message.success_delete_lesson_type')], 200);
+        return $this->formatResponse($response['message'], $response['status_code']);
     }
 
     public function lessonAddReview(Request $request)
@@ -229,6 +154,14 @@ class LessonsController extends Controller
             });
         }
         catch(\Exception $e){
+            $this->logError(
+                'Lesson Add Review',
+                'stars : ' . $request->stars .
+                ', review : ' . $request->review .
+                ', user_id' . auth()->user()->id,
+                $e
+            );
+
             return response()->json(['message' => trans('message.failed_add_lesson_review')], 400);
         }
 
@@ -272,6 +205,16 @@ class LessonsController extends Controller
             });
         }
         catch(\Exception $e){
+            $this->logError(
+                'Lesson Request Create',
+                'name : ' . $request->name .
+                ', description : ' . $request->description .
+                ', requestor_id : ' . auth()->user()->id .
+                ', tag : ' . $request->tag . 
+                ', location : ' . $request->location,
+                $e
+            );
+
             return response()->json(['message' => trans('message.fail_create_lesson')], 400);
         }
 
@@ -301,6 +244,13 @@ class LessonsController extends Controller
 
             }
             catch(\Exception $e){
+                $this->logError(
+                    'Lesson Interested Requestor Create',
+                    'lesson_id : ' . $request->lesson_id .
+                    ', auth user : ' . auth()->user()->id,
+                    $e
+                );
+
                 return response()->json(['message' => trans('message.fail_create_lesson_interested_requestor')], 400);
             }
 

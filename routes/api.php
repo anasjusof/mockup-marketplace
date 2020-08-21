@@ -26,7 +26,7 @@ Route::middleware('auth:api')->group(function () {
 
 
     //User Profiles
-    Route::get('userProfile', 'UserController@showUserProfile');
+    Route::get('userProfileShow', 'UserController@userProfileShow');
     Route::post('userProfileUpdate/{user}', 'UserController@userProfileUpdate');
 
     

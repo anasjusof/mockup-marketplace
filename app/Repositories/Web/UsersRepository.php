@@ -5,35 +5,19 @@ namespace App\Repositories\Web;
 use App\User;
 use App\Locations;
 use App\TagsLesson;
+use App\Traits\LogTrait;
 use App\UserWithLessonTag;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\UserWithAvailibilityLocation;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class UsersRepository
 {
+    use LogTrait;
+    
+    public function register($request){
 
-    protected $user;
-    protected $lessonRepository;
-
-	public function __construct(User $user)
-	{
-        $this->user = $user;
-	}
-
-    public function find($userId)
-    {
-        $user = User::find($userId);
-        return $user;
-    }
-
-    public function findByEmail($email)
-    {
-        return User::where('email', $email)->first();
-    }
-
-    public function create($request)
-    {
         try{
             DB::transaction(function() use ($request){
                 //Create user
@@ -72,24 +56,71 @@ class UsersRepository
         }
         catch(\Exception $e){
             $this->logError(
-                'Create user',
-                'Email : ' . $request->email,
-                'Name : ' . $request->name
+                'User Register',
+                'email : ' . $request->email .
+                ', name : ' . $request->name .
+                ', password : ' . $request->password .
+                ', role : ' . $request->role .
+                ', tag : ' . json_encode($request->tag) .
+                ', location : ' .  json_encode($request->location),
+                $e
             );
 
-            return response()->json(
-                [
-                    'message' => trans('message.fail_create_user')
-                ],
-                409
+            return [
+                'status_code' => 400,
+                'message' => trans('message.fail_create_user')
+            ];
+        }
+
+        return [
+            'status_code' => 200,
+            'message' => trans('message.success_create_user')
+        ];
+    }
+
+    public function userProfileShow(){
+        try{
+            $user = User::with('availabilityLocations', 'lessons.lessonTag')
+                    ->where('id', auth()->user()->id)
+                    ->first();
+        }
+        catch(ModelNotFoundException $e){
+            $this->logError(
+                'Show User Profile',
+                'auth_user_id : ' . auth()->user()->id,
+                $e
             );
         }
 
-        return response()->json(
-            [
-                'message' => trans('message.success_create_user')
-            ],
-            200
-        );
+        return $user;
     }
+
+    public function userProfileUpdate($request, $user){
+
+        try{
+            DB::transaction(function() use ($request, $user){
+                $user->update($request);
+            });
+        }
+        catch(\Exception $e){
+            
+            $this->logError(
+                'User Profile Update',
+                'name : ' . $request->name .
+                ', password : ' . $request->password,
+                $e
+            );
+
+            return [
+                'status_code' => 400,
+                'message' => trans('message.fail_update_user')
+            ];
+        }
+
+        return [
+            'status_code' => 200,
+            'message' => trans('message.success_update_user')
+        ];
+    }
+    
 }

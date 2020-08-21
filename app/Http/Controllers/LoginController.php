@@ -22,13 +22,6 @@ class LoginController extends Controller
         //Get user
         $user = User::where('email', $request->email)->first();
 
-        //If user not found || request->password doest not meet the hashed password in datatabase
-        // if(!$user || !Hash::check($request->password, $user->password)){
-        //     throw ValidationException::withMessages([
-        //         'email' => ['The provided credential is incorrect']
-        //     ]);
-        // }
-
         //If auth attempt of login is false/failed, return response
         if(!auth()->attempt($loginData)){
             return response(['message' => 'Invalid credential']);

@@ -9,9 +9,20 @@ use App\UserWithLessonTag;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\UserWithAvailibilityLocation;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+
+use App\Repositories\Web\UsersRepository;
+
+
 
 class UserController extends Controller
 {
+    private $usersRepository;
+
+    public function __construct(UsersRepository $usersRepository){
+        $this->usersRepository = $usersRepository;
+    }
+
     public function register(Request $request)
     {    
         //Validate request
@@ -22,70 +33,14 @@ class UserController extends Controller
             'role' => ['required']
         ]);
 
-        try{
-            DB::transaction(function() use ($request){
-                //Create user
-                $user = User::create([
-                    'email' => $request->email,
-                    'name' => $request->name,
-                    'password' => bcrypt($request->password)
-                ]);
+        $response = $this->usersRepository->register($request);
 
-                $user->assignRole($request->role);
-                
-                //Insructor
-                if($request->role == 'instructor'){
-                    
-                    //Save tag lesson
-                    foreach($request->tag as $tag){
-                        $tag = TagsLesson::firstOrCreate(['name' => $tag]);
-        
-                        UserWithLessonTag::firstOrCreate([
-                            'user_id' => $user->id,
-                            'tag_lesson_id' => $tag->id
-                        ]);
-                    }
-
-                    //Save availibilty location
-                    foreach($request->location as $location){
-                        $location = Locations::firstOrCreate(['name' => $location]);
-        
-                        UserWithAvailibilityLocation::firstOrCreate([
-                            'user_id' => $user->id,
-                            'location_id' => $location->id
-                        ]);          
-                    }
-                }
-            });
-        }
-        catch(\Exception $e){
-            $this->logError(
-                'Create user',
-                'Email : ' . $request->email,
-                'Name : ' . $request->name
-            );
-
-            return response()->json(
-                [
-                    'message' => trans('message.fail_create_user')
-                ],
-                409
-            );
-        }
-
-        return response()->json(
-            [
-                'message' => trans('message.success_create_user')
-            ],
-            200
-        );
+        return $this->formatResponse($response['message'], $response['status_code']);
     }
 
-    public function showUserProfile()
+    public function userProfileShow()
     {
-        //$user = auth()->user();
-
-        $user = User::with('availabilityLocations.location', 'lessons.lessonTag')->find(auth()->user()->id);
+        $user = $this->usersRepository->userProfileShow();
 
         return response()->json([ 'user_information' => $user], 200);
     }
@@ -103,24 +58,9 @@ class UserController extends Controller
         
         $request = array_filter($request->all());
 
-        try{
-            DB::transaction(function() use ($request, $user){
-                $user->update($request);
-            });
-        }
-        catch(\Exception $e){
-            return response()->json(
-                [
-                    'message' => trans('message.fail_update_user')
-                ], 400
-            );
-        }
+        $response = $this->usersRepository->userProfileUpdate($request, $user);
 
-        return response()->json(
-            [
-                'message' => trans('message.success_update_user')
-            ], 200
-        );
+        return $this->formatResponse($response['message'], $response['status_code']);
 
     }
 }
