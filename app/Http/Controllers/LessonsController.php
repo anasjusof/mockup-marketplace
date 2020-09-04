@@ -36,16 +36,25 @@ class LessonsController extends Controller
     {
         $response = $this->lessonRepository->lessonGetInformation($lesson_id);
         
-        return $this->formatResponse($response['message'], $response['status_code']);
+        return $this->formatResponse('', $response['status_code'], $response['data']);
         
     }
 
     public function lessonCreate(Request $request)
     {
+        $request->validate([
+            'name' => 'required',
+            'description' => 'required',
+            'user_id' => 'required',
+            'post_or_request' => 'required',
+            'tag' => 'required',
+            'location' => 'required'
+        ]);
+
         $role = auth()->user()->getRoleNames();
 
         //If role is student, then cannot create a lesson, instead it will become requested lesson
-        ($role[0] == 'student') ? $request->post_or_request = 2 : $request->post_or_request = 1;
+        ($role[0] == 'student') ? $request->post_or_request = 2 : $request->post_or_request = $request->post_or_request;
 
         $lesson_request = [
             'name' => $request->name,
@@ -138,87 +147,21 @@ class LessonsController extends Controller
     public function lessonAddReview(Request $request)
     {
         $request->validate([
-            'stars' => 'required'
+            'stars' => 'required',
+            'review' => 'required',
+            'lesson_id' => 'required'
         ]);
 
-        try{
-            DB::transaction(function() use ($request)
-            {
-                $request['user_id'] = auth()->user()->id;
+        $response = $this->lessonRepository->lessonAddReview($request);
 
-                LessonReviews::create([
-                    'stars' => $request->stars,
-                    'review' => $request->review,
-                    'user_id' => auth()->user()->id
-                ]);
-            });
-        }
-        catch(\Exception $e){
-            $this->logError(
-                'Lesson Add Review',
-                'stars : ' . $request->stars .
-                ', review : ' . $request->review .
-                ', user_id' . auth()->user()->id,
-                $e
-            );
-
-            return response()->json(['message' => trans('message.failed_add_lesson_review')], 400);
-        }
-
-        return response()->json(['message' => trans('message.success_add_lesson_review')], 200);
+        return $this->formatResponse($response['message'], $response['status_code']);
     }
 
-    public function lessonRequestCreate(Request $request)
+    public function lessonReviewRemove(Request $request)
     {
+        LessonReviews::find($request->review_id)->delete();
 
-        $lesson_request = [
-            'name' => $request->name,
-            'description' => $request->description,
-            'requestor_id' => auth()->user()->id
-        ];
-
-        try{
-            DB::transaction(function() use($lesson_request, $request){
-                
-                //Create lesson
-                $lesson = LessonRequest::create($lesson_request);
-    
-                //Foreach new tag, create tag or else take created tag to be stored into lessonWithTag
-                foreach($request->tag as $tag){
-                    $tag = TagsLesson::firstOrCreate(['name' => $tag]);
-    
-                    LessonRequestWithTags::firstOrCreate([
-                        'requested_lesson_id' => $lesson->id,
-                        'tag_requested_lesson_id' => $tag->id
-                    ]);
-                }
-    
-                //Foreach new locatiom, create new location or else take created location o be stored into lessonWithLocation
-                foreach($request->location as $location){
-                    $location = Locations::firstOrCreate(['name' => $location]);
-    
-                    LessonRequestWithLocations::firstOrCreate([
-                        'requested_lesson_id' => $lesson->id,
-                        'requested_location_id' => $location->id
-                    ]);          
-                }
-            });
-        }
-        catch(\Exception $e){
-            $this->logError(
-                'Lesson Request Create',
-                'name : ' . $request->name .
-                ', description : ' . $request->description .
-                ', requestor_id : ' . auth()->user()->id .
-                ', tag : ' . $request->tag . 
-                ', location : ' . $request->location,
-                $e
-            );
-
-            return response()->json(['message' => trans('message.fail_create_lesson')], 400);
-        }
-
-        return response()->json(['message' => trans('message.success_create_lesson')], 200);
+        return 'deleted';
     }
     
     public function lessonInterestedRequestorCreate(Request $request){
@@ -226,37 +169,9 @@ class LessonsController extends Controller
             'lesson_id' => 'required'
         ]);
 
-        $lesson = Lessons::where('id', $request->lesson_id)->where('post_or_request', 2)->first();
+        $response = $this->lessonRepository->lessonInterestedRequestorCreate($request);
 
-        //If requested lesson requestor is not the same with the interested requestor, then only create
-        //We dont want the requestor to be included into interested requestor
-        if($lesson->user_id != auth()->user()->id){
-
-            $create_data = [
-                'user_id' => auth()->user()->id,
-                'lesson_id' => $request->lesson_id
-            ];
-
-            try{
-                \DB::transaction(function() use ($create_data){
-                    LessonInterestedRequestor::create($create_data);
-                });
-
-            }
-            catch(\Exception $e){
-                $this->logError(
-                    'Lesson Interested Requestor Create',
-                    'lesson_id : ' . $request->lesson_id .
-                    ', auth user : ' . auth()->user()->id,
-                    $e
-                );
-
-                return response()->json(['message' => trans('message.fail_create_lesson_interested_requestor')], 400);
-            }
-
-            return response()->json(['message' => trans('message.success_create_lesson_interested_requestor')], 200);
-        }
-        return response()->json(['message' => trans('message.success_fail_create_lesson_interested_requestor_on_same_user')], 200);
+        return $this->formatResponse($response['message'], $response['status_code']);
     }
 
     public function getDistanceBetweenUserAndLessonLocation(Request $request){
@@ -297,6 +212,59 @@ class LessonsController extends Controller
 
         return 'enable the code first';
     }
+
+    // public function lessonRequestCreate(Request $request)
+    // {
+
+    //     $lesson_request = [
+    //         'name' => $request->name,
+    //         'description' => $request->description,
+    //         'requestor_id' => auth()->user()->id
+    //     ];
+
+    //     try{
+    //         DB::transaction(function() use($lesson_request, $request){
+                
+    //             //Create lesson
+    //             $lesson = LessonRequest::create($lesson_request);
+    
+    //             //Foreach new tag, create tag or else take created tag to be stored into lessonWithTag
+    //             foreach($request->tag as $tag){
+    //                 $tag = TagsLesson::firstOrCreate(['name' => $tag]);
+    
+    //                 LessonRequestWithTags::firstOrCreate([
+    //                     'requested_lesson_id' => $lesson->id,
+    //                     'tag_requested_lesson_id' => $tag->id
+    //                 ]);
+    //             }
+    
+    //             //Foreach new locatiom, create new location or else take created location o be stored into lessonWithLocation
+    //             foreach($request->location as $location){
+    //                 $location = Locations::firstOrCreate(['name' => $location]);
+    
+    //                 LessonRequestWithLocations::firstOrCreate([
+    //                     'requested_lesson_id' => $lesson->id,
+    //                     'requested_location_id' => $location->id
+    //                 ]);          
+    //             }
+    //         });
+    //     }
+    //     catch(\Exception $e){
+    //         $this->logError(
+    //             'Lesson Request Create',
+    //             'name : ' . $request->name .
+    //             ', description : ' . $request->description .
+    //             ', requestor_id : ' . auth()->user()->id .
+    //             ', tag : ' . $request->tag . 
+    //             ', location : ' . $request->location,
+    //             $e
+    //         );
+
+    //         return response()->json(['message' => trans('message.fail_create_lesson')], 400);
+    //     }
+
+    //     return response()->json(['message' => trans('message.success_create_lesson')], 200);
+    // }
 }
 
 

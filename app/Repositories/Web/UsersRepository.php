@@ -29,7 +29,7 @@ class UsersRepository
 
                 $user->assignRole($request->role);
                 
-                //Insructor
+                //Instructor
                 if($request->role == 'instructor'){
                     
                     //Save tag lesson
@@ -90,16 +90,25 @@ class UsersRepository
                 'auth_user_id : ' . auth()->user()->id,
                 $e
             );
+
+            return [
+                'status_code' => 400,
+                'data' => []
+            ];
         }
 
-        return $user;
+        return [
+            'status_code' => 200,
+            'data' => $user
+        ];
     }
 
-    public function userProfileUpdate($request, $user){
+    public function userProfileUpdate($request){
 
         try{
-            DB::transaction(function() use ($request, $user){
-                $user->update($request);
+            DB::transaction(function() use ($request){
+                $user = User::find(auth()->user()->id);
+                $user->update($request->toArray());
             });
         }
         catch(\Exception $e){

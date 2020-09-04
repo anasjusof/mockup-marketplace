@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Providers;
+use App\Observers\BlameableObserver;
 
 use Illuminate\Support\ServiceProvider;
 

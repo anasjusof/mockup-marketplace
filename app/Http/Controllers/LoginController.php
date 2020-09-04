@@ -44,11 +44,6 @@ class LoginController extends Controller
             'revoked' => true
         ]);
 
-        return response()->json(
-            [
-                'message' => trans('message.success_log_out')
-            ],
-            200
-        );
+        return $this->formatResponse(trans('message.success_log_out'), 200);
     }
 }

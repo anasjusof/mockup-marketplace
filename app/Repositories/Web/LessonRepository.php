@@ -24,27 +24,6 @@ class LessonRepository
 {
     use LogTrait;
 
-    public function lessonGetInformation($lesson_id)
-    {
-        $lesson_info = [];
-
-        $lesson = Lessons::with(['tags.tag', 'locations.location'])->find($lesson_id);
-
-        if($lesson){
-            $lesson_info = $lesson;
-
-            return [
-                'status_code' => 200,
-                'lesson_info' => $lesson_info
-            ];
-        }
-
-        return [
-            'status_code' => 400,
-            'lesson_info' => $lesson_info
-        ];
-    }
-
     public function lessonCreate($lesson_request, $request)
     {
         try{
@@ -96,8 +75,40 @@ class LessonRepository
         ];
     }
 
+    public function lessonGetInformation($lesson_id)
+    {
+        $lesson_info = [];
+
+        $lesson = Lessons::with(['tags.tag', 'locations.location'])->find($lesson_id);
+
+        if($lesson){
+            $lesson_info = $lesson;
+
+            return [
+                'status_code' => 200,
+                'data' => $lesson_info
+            ];
+        }
+
+        return [
+            'status_code' => 400,
+            'data' => $lesson_info
+        ];
+    }
+
     public function lessonWishlist($request)
     {
+        //If lesson not found, should not be able to wishlist
+        $lesson = Lessons::find($request->lesson_id);
+
+        if(!$lesson)
+        {
+            return [
+                'status_code' => 400,
+                'message' => trans('message.failed_wishlist_lesson')
+            ];
+        }
+
         try{
             \DB::transaction(function() use ($request){
                 LessonWishlist::firstOrCreate([
@@ -153,8 +164,8 @@ class LessonRepository
             );
 
             return [
-                'status_code' => 400,
-                'message' => trans('message.failed_remove_wishlist_lesson')
+                'status_code' => 500,
+                'message' => trans('message.something_when_wrong')
             ];
         }
 
@@ -223,6 +234,98 @@ class LessonRepository
         return [
             'status_code' => 200,
             'message' => trans('message.success_delete_lesson_type')
+        ];
+    }
+
+    public function lessonAddReview($request)
+    {
+        $lesson = Lessons::find($request->lesson_id);
+
+        if(!$lesson){
+            return [
+                'status_code' => 400,
+                'message' => trans('message.failed_add_lesson_review_lesson_not_found')
+            ];
+        }
+
+        try{
+            DB::transaction(function() use ($request, $lesson)
+            {
+                $request['user_id'] = auth()->user()->id;
+
+                LessonReviews::create([
+                    'stars' => $request->stars,
+                    'review' => $request->review,
+                    'user_id' => auth()->user()->id,
+                    'lesson_id' => $lesson->id
+                ]);
+            });
+        }
+        catch(\Exception $e){
+            $this->logError(
+                'Lesson Add Review',
+                'stars : ' . $request->stars .
+                ', review : ' . $request->review .
+                ', user_id : ' . auth()->user()->id .
+                ', lesson_id : ' . $request->lesson_id, 
+                $e
+            );
+
+            return [
+                'status_code' => 500,
+                'message' => trans('message.failed_add_lesson_review')
+            ];
+        }
+
+        return [
+            'status_code' => 200,
+            'message' => trans('message.success_add_lesson_review')
+        ];
+    }
+
+    public function lessonInterestedRequestorCreate($request)
+    {
+        $lesson = Lessons::where('id', $request->lesson_id)->where('post_or_request', 2)->first();
+
+        //If requested lesson requestor is not the same with the interested requestor, then only create
+        //We dont want the requestor to be included into interested requestor
+        if($lesson->user_id != auth()->user()->id){
+
+            $create_data = [
+                'user_id' => auth()->user()->id,
+                'lesson_id' => $request->lesson_id
+            ];
+
+            try{
+                \DB::transaction(function() use ($create_data){
+                    LessonInterestedRequestor::create($create_data);
+                });
+
+            }
+            catch(\Exception $e){
+                $this->logError(
+                    'Lesson Interested Requestor Create',
+                    'lesson_id : ' . $request->lesson_id .
+                    ', auth user : ' . auth()->user()->id,
+                    $e
+                );
+
+                return [
+                    'status_code' => 500,
+                    'message' => trans('message.fail_create_lesson_interested_requestor')
+                ];
+            }
+
+            return [
+                'status_code' => 200,
+                'message' => trans('message.success_create_lesson_interested_requestor')
+            ];
+            
+        }
+
+        return [
+            'status_code' => 400,
+            'message' => trans('message.success_fail_create_lesson_interested_requestor_on_same_user')
         ];
     }
 }

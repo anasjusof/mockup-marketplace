@@ -40,12 +40,12 @@ class UserController extends Controller
 
     public function userProfileShow()
     {
-        $user = $this->usersRepository->userProfileShow();
+        $response = $this->usersRepository->userProfileShow();
 
-        return response()->json([ 'user_information' => $user], 200);
+        return response()->json([ 'user_information' => $response['data']], $response['status_code']);
     }
 
-    public function userProfileUpdate(Request $request, User $user)
+    public function userProfileUpdate(Request $request)
     {
         $request->only([
             'name', 
@@ -55,10 +55,8 @@ class UserController extends Controller
         if($request['password']){
             $request['password'] = bcrypt($request['password']);
         }
-        
-        $request = array_filter($request->all());
 
-        $response = $this->usersRepository->userProfileUpdate($request, $user);
+        $response = $this->usersRepository->userProfileUpdate($request);
 
         return $this->formatResponse($response['message'], $response['status_code']);
 

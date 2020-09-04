@@ -27,23 +27,26 @@ Route::middleware('auth:api')->group(function () {
 
     //User Profiles
     Route::get('userProfileShow', 'UserController@userProfileShow');
-    Route::post('userProfileUpdate/{user}', 'UserController@userProfileUpdate');
+    Route::post('userProfileUpdate', 'UserController@userProfileUpdate');
 
     
     //Lesson
-    #Detailed information on lesson
-    Route::get('lessonGetInformation/{lesson}', 'LessonsController@lessonGetInformation');
-    #Search the lesson via keyword + location
-    Route::post('lessonSearch', 'LessonsController@lessonSearch');
-    #Wishlist a lessson
-    Route::post('lessonWishlist', 'LessonsController@lessonWishlist');
-    Route::post('lessonWishlistRemove', 'LessonsController@lessonWishlistRemove');
-    #Add review to lesson
-    Route::post('lessonAddReview', 'LessonsController@lessonAddReview');
     #Create a lesson (Post a lesson @ Request for lesson)
     Route::post('lessonCreate', 'LessonsController@lessonCreate');
-    #Create interested requestor to join requested lesson
-    Route::post('lessonInterestedRequestorCreate', 'LessonsController@lessonInterestedRequestorCreate');
+    #Detailed information on lesson
+    Route::get('lessonGetInformation/{lesson}', 'LessonsController@lessonGetInformation');
+     #Wishlist a lessson
+     Route::post('lessonWishlist', 'LessonsController@lessonWishlist');
+     Route::post('lessonWishlistRemove', 'LessonsController@lessonWishlistRemove');
+     #Add review to lesson
+     Route::post('lessonAddReview', 'LessonsController@lessonAddReview');
+     #Remove lesson review
+     Route::post('lessonReviewRemove', 'LessonsController@lessonReviewRemove');
+     #Create interested requestor to join requested lesson
+     Route::post('lessonInterestedRequestorCreate', 'LessonsController@lessonInterestedRequestorCreate');
+    #Search the lesson via keyword + location
+    Route::post('lessonSearch', 'LessonsController@lessonSearch');
+   
 
     #Get location between two point
     Route::post('getDistanceBetweenUserAndLessonLocation', 'LessonsController@getDistanceBetweenUserAndLessonLocation');

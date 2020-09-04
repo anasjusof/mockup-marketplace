@@ -2,30 +2,104 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
+use App\User;
 use Tests\TestCase;
+use Faker\Factory as Faker;
+use Laravel\Passport\Passport;
+use Illuminate\Foundation\Testing\WithFaker;
 
 class RegisterTest extends TestCase
 {
+
     /**
      * A basic feature test example.
      *
      * @return void
      */
-    public function testRegisterSuccess()
+    public function testRegisterSuccessOnInstructorRole()
     {
+        $faker = Faker::create();
+
         $payload = [
-            'email' => '123@123.com',
-            'name' => '123',
-            'password' => '123'
+            'email' => $faker->unique()->safeEmail,
+            'name' => $faker->name,
+            'password' => '123',
+            'role' => 'instructor',
+            'tag' => ['Music', 'English'],
+            'location' => ['Kuala Lumpur'],
         ];
 
         $response = $this->json('POST', 'api/register', $payload);
 
         $expected_response = [
-            'success' => true,
-            'message' => 'User successfully created'
+            'message' => trans('message.success_create_user')
+        ];
+
+        $response->assertStatus(200);
+        $response->assertExactJson($expected_response);
+    }
+
+    public function testRegisterFailOnInstructorRoleNoTag()
+    {
+        $faker = Faker::create();
+
+        $payload = [
+            'email' => $faker->unique()->safeEmail,
+            'name' => $faker->name,
+            'password' => '123',
+            'role' => 'instructor',
+            //'tag' => ['Music', 'English'],
+            'location' => ['Kuala Lumpur'],
+        ];
+
+        $response = $this->json('POST', 'api/register', $payload);
+
+        $expected_response = [
+            'message' => trans('message.fail_create_user')
+        ];
+
+        $response->assertStatus(400);
+        $response->assertExactJson($expected_response);
+    }
+
+    public function testRegisterFailOnInstructorRoleNoLocation()
+    {
+        $faker = Faker::create();
+
+        $payload = [
+            'email' => $faker->unique()->safeEmail,
+            'name' => $faker->name,
+            'password' => '123',
+            'role' => 'instructor',
+            'tag' => ['Music', 'English'],
+            //'location' => ['Kuala Lumpur'],
+        ];
+
+        $response = $this->json('POST', 'api/register', $payload);
+
+        $expected_response = [
+            'message' => trans('message.fail_create_user')
+        ];
+
+        $response->assertStatus(400);
+        $response->assertExactJson($expected_response);
+    }
+
+    public function testRegisterSuccessOnStudentRole()
+    {
+        $faker = Faker::create();
+
+        $payload = [
+            'email' => $faker->unique()->safeEmail,
+            'name' => $faker->name,
+            'password' => '123',
+            'role' => 'student'
+        ];
+
+        $response = $this->json('POST', 'api/register', $payload);
+
+        $expected_response = [
+            'message' => trans('message.success_create_user')
         ];
 
         $response->assertStatus(200);
@@ -34,15 +108,17 @@ class RegisterTest extends TestCase
 
     public function testRegisterFail()
     {
+        $faker = Faker::create();
+
         $payload = [
-            'email' => '123@123.com',
-            'name' => '123',
-            'password' => '123'
+            'email' => $faker->unique()->safeEmail,
+            'name' => $faker->name,
+            'password' => '123',
+            'role' => 'instructor'
         ];
 
         $expected_mock_response = [
-            'success' => false,
-            'message' => 'Failed to create user'
+            'message' => trans('message.fail_create_user')
         ];
 
         $mock_base_service = \Mockery::mock('overload:App\Http\Controllers\RegisterController');
@@ -52,12 +128,56 @@ class RegisterTest extends TestCase
             ->andReturn($expected_mock_response);
             
         $expected_response = [
-            'success' => false,
-            'message' => 'Failed to create user',
+            'message' => trans('message.fail_create_user')
         ];
 
         $response = $this->json('POST', 'api/register', $payload); 
         
         $response->assertExactJson($expected_response);
     }
+
+    public function testUserProfileShowSuccess()
+    {
+        $user = factory(User::class)->create();
+
+        Passport::actingAs(
+            $user/*,
+            ['user']*/
+        );
+
+        $response = $this->json('GET', 'api/userProfileShow');
+
+        $response->assertStatus(200);
+    }
+
+    public function testUserProfileShowFailOnUnauthenticatedUser()
+    {
+        $response = $this->json('GET', 'api/userProfileShow');
+
+        $response->assertExactJson(['message' => 'Unauthenticated.']);
+        $response->assertStatus(401);
+    }
+
+    public function testUserProfileUpdateSuccess()
+    {
+        $faker = Faker::create();
+
+        $user = factory(User::class)->create();
+
+        Passport::actingAs(
+            $user/*,
+            ['user']*/
+        );
+
+        $payload = [
+            'name' => $faker->name,
+            'password' => 'abc123'
+        ];
+
+        $response = $this->json('POST', 'api/userProfileUpdate/', $payload);
+
+        $response->assertStatus(200);
+    }
+
+
 }
